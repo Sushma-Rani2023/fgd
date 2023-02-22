@@ -8,7 +8,7 @@ const connectDB = require("./config/db")
 const Emp = require("./model/Emp")
 const aws = require("aws-sdk")
 
-const { eventNames } = require("./model/Emp");
+//const { eventNames } = require("./model/Emp");
 
 env.config();
 const awsConfig = {
@@ -42,12 +42,13 @@ module.exports.getEmployees = async (event) => {
 
 module.exports.postEmployee = async (event) => {
   try {
-    const { Employee, department, email } = JSON.parse(event.body)
-
+    const { Employee, department, email, password } = JSON.parse(event.body)
+    const new_password= await bcrypt.hash(password,10)
     const emp = new Emp({
       email,
       Employee,
-      department
+      department,
+      password: new_password
     })
 
     const data = await emp.save()
@@ -95,29 +96,28 @@ module.exports.postEmployee = async (event) => {
   }
 }
 module.exports.loginEmployee = async (event) => {
-  const Email = process.env.FROM_EMAIL;
   try{
-    const{email,password} = JSON.parse(event.body);
-    let loginemployee = await  employee.findOne({email:email});
-    bcrypt.compare(password, loginemployee.password, function (error,result){
-      if(result==true){
+    const parse = JSON.parse(event.body);
+    //console.log(parse,"WWWWWWWWWWWWWWWWWWW",Emp);
+    const loginemployee =  await Emp.findOne({email:parse.email});
+    //console.log("##############3",parse.password,loginemployee.password,loginemployee.email)
+    const result=bcrypt.compare(parse.password, loginemployee.password)
+    
+      if(result){
         var token = jwt.sign(
-          {email:loginemployee.email, id:loginemployee._id, name: loginemployee.name},
+          {email:loginemployee.email, id:loginemployee._id, },
           process.env.SECRETKEY
         );
-
-        
-        console.log("Logged in Successfully");
-        
+        console.log(token);
+          
       }
-      else{
-        console.log("Logged in unsuccessfully");
-      }
-    });
+    
+    const Email = process.env.FROM_EMAIL;
+    //console.log("**********************",Email,parse.email)
     const params ={
       Source: Email,
       Destination :{
-        ToAddresses : [email],
+        ToAddresses : [loginemployee.email],
       },
       Message: {
         Subject : {
@@ -132,22 +132,29 @@ module.exports.loginEmployee = async (event) => {
         },
       },
     };
-    const emailSent = await SES.sendEmail(params).promise()
-    .then(data => {
-      data
-    })
-      .catch(error =>{
-        error.message
-  
-      
-    })
-
-
-  }
+    const messageId = await SES.sendEmail(params)
+    .promise()
+    .then((data) => data.messageId);
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        data: Emp,
+        message: "email sent ",
+        messageId
+      })
+    };
+  } 
   catch(error){
-    console.log("Invalid Details");
+    return {
+      statusCode: 501,
+      body: JSON.stringify({
+        message: error.message,
+      })
+    }
   }
-};
+}
+
+;
 
 
 

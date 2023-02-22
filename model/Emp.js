@@ -1,10 +1,6 @@
 const mongoose=require("mongoose")
 const EmpSchema= new mongoose.Schema({
 
-    id:{
-        type:"String",
-        required:true
-    },
     email:{
         type:"String",
         required:true
@@ -28,5 +24,5 @@ const EmpSchema= new mongoose.Schema({
 
 })
 
-const Emp = mongoose.model("emp", EmpSchema);
+const Emp = mongoose.model("Emp", EmpSchema);
 module.exports = Emp;
